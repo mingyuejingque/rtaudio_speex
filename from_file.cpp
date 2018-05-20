@@ -22,7 +22,7 @@ const int fmt = RTAUDIO_SINT16;
 static unsigned int sampleRate = 8000;
 static unsigned int bufferFrames = 160;
 static unsigned int tail = bufferFrames * 8;
-
+static bool g_having_play = false;
 std::mutex g_mutex;
 
 typedef struct buffer_s {
@@ -39,6 +39,9 @@ int input_cb(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
 		std::cout << "Stream overflow detected!" << status << std::endl;
 	// Do something with the data in the "inputBuffer" buffer.
 
+	while (!g_having_play) {
+		std::this_thread::yield();
+	}
     size_t size = nBufferFrames * channels * 2;
 
     static FILE* fi = fopen("./cap.pcm", "wb");
@@ -46,10 +49,10 @@ int input_cb(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
 
     std::lock_guard<std::mutex> guard(g_mutex);
 	if (refq.size() >= delay_count) {
-		static buffer_t sbuf;
+		static buffer_t out;
 		static FILE* fr = fopen("cancel.pcm", "wb");
-		speex_func_echo_cancel((short*)inputBuffer, (short*)refq.front().buff, (short*)sbuf.buff);
-		fwrite(sbuf.buff, 1, size, fr);
+		speex_func_echo_cancel((short*)inputBuffer, (short*)refq.front().buff, (short*)out.buff);
+		fwrite(out.buff, 1, size, fr);
 		refq.pop();
 		//降噪后的输出缓冲区
 	}    
@@ -71,6 +74,7 @@ int output_cb(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
     buffer_t bf;
     memcpy(bf.buff, outputBuffer, want_size);
     refq.push(bf);	
+    g_having_play = true;
 
 	return 0;
 }
