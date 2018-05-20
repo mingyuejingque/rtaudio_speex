@@ -21,7 +21,7 @@ const int channels = 1;
 const int fmt = RTAUDIO_SINT16;
 static unsigned int sampleRate = 8000;
 static unsigned int bufferFrames = 160;
-static unsigned int tail = bufferFrames * 3;
+static unsigned int tail = bufferFrames * 8;
 
 std::mutex g_mutex;
 
