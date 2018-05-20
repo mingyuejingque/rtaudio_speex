@@ -9,6 +9,13 @@
 #include "RtAudio.h"
 #include "speex_func.h"
 
+//测试目标：
+/*
+1 改成从文件读入数据，当作远端传来的音频 remote.pcm
+2 把mic读到数据写到文件  cap.pcm
+3 把speex 处理后的数据写到文件 cancel.pcm
+*/
+
 const int delay_count = 2;
 const int channels = 1;
 const int fmt = RTAUDIO_SINT16;
@@ -83,6 +90,8 @@ int output_cb(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
 	} while(buf_size == 0);
 #endif
 
+	static FILE* fp = fopen("play.pcm", "wb");
+	fwrite(outputBuffer, 1, want_size, fp);
 #ifdef DEBUG	
 	std::cout << __func__ 
 		<< " tid: " << std::this_thread::get_id()
