@@ -1,1 +1,4 @@
 *.exe
+exe
+./*.exe
+test.exe
