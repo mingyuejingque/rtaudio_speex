@@ -47,6 +47,12 @@ int input_cb(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
     static FILE* fi = fopen("./cap.pcm", "wb");
     fwrite(inputBuffer, 1, size, fi);
 
+    static bool bxx = false;
+    if (!bxx) {  //扔掉一帧试试
+    	bxx = true;
+    	return 0;
+    }
+
     buffer_t bf;
     memcpy(bf.buff, inputBuffer, size);
     std::lock_guard<std::mutex> guard(g_mutex_input);
