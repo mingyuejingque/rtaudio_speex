@@ -6,7 +6,7 @@
 #include "RtAudio.h"
 #include <mutex>
 #include <thread>
-#include <boost/circular_buffer.hpp>
+#include <queue>
 
 const int channels = 1;
 const int fmt = RTAUDIO_SINT16;
@@ -18,7 +18,7 @@ typedef struct buffer_s {
     char buff[320];
 } buffer_t;
 
-boost::circular_buffer<buffer_t> buff(1024);
+std::queue<buffer_t> capq;  //capture form mic.
 
 int input_cb(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
 	double streamTime, RtAudioStreamStatus status, void *userData)
@@ -31,7 +31,7 @@ int input_cb(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
 	std::lock_guard<std::mutex> guard(g_mutex);
     buffer_t bf;
     memcpy(bf.buff, inputBuffer, size);
-	buff.push_back(bf);
+	capq.push(bf);
 	std::cout << "\t\t\t\t\t" << __func__ 
 		<< " tid: " << std::this_thread::get_id()
 		<< " put bytes: " << size 
@@ -52,19 +52,15 @@ int output_cb(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
 	// Do something with the data in the "inputBuffer" buffer.
 
 	size_t want_size = nBufferFrames * channels * 2;
-#if 0
-	static FILE *fp = fopen("out2.pcm", "rb");
-	fread(outputBuffer, 1, want_size, fp);
-#endif
 
 #if 1
 	size_t buf_size = 0;
 	do {
 		std::lock_guard<std::mutex> guard(g_mutex);
-        buf_size = buff.size();
+        buf_size = capq.size();
 		if (buf_size > 0) {
-            memcpy(outputBuffer, buff[0].buff, want_size);
-            buff.pop_front();
+            memcpy(outputBuffer, capq.front().buff, want_size);
+            capq.pop();
 			break;
 		}
 		std::this_thread::yield();
@@ -74,7 +70,7 @@ int output_cb(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
 		<< " tid: " << std::this_thread::get_id()
 		<< " writes bytes: "
 		<< want_size 
-		<< "buff.size: " << buff.size()
+		<< " buff.size: " << capq.size()
 		<< std::endl;
 	return 0;
 }
