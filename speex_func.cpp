@@ -23,8 +23,10 @@ int speex_func_init(int frame_size, int filter_length, int sample_rate) {
 		g_frame_size,
 		sample_rate); 
 
+	int _db = 60;
 	speex_echo_ctl(g_echo_state, SPEEX_ECHO_SET_SAMPLING_RATE, &sample_rate);
 	speex_preprocess_ctl(g_preprocess_state, SPEEX_PREPROCESS_SET_ECHO_STATE, g_echo_state);
+	speex_preprocess_ctl(g_preprocess_state, SPEEX_PREPROCESS_SET_ECHO_SUPPRESS, &_db);
 
 	return (g_echo_state ? 1 : 0) && (g_preprocess_state? 1: 0);
 }
