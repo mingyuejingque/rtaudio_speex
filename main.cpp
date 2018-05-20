@@ -3,11 +3,13 @@
 #include <string>
 #include <cstdlib>
 #include <string.h>
-#include "RtAudio.h"
 #include <mutex>
 #include <thread>
 #include <queue>
+#include "RtAudio.h"
+#include "speex_func.h"
 
+const int delay_count = 2;
 const int channels = 1;
 const int fmt = RTAUDIO_SINT16;
 unsigned int sampleRate = 8000;
@@ -19,6 +21,7 @@ typedef struct buffer_s {
 } buffer_t;
 
 std::queue<buffer_t> capq;  //capture form mic.
+std::queue<buffer_t> refq;  //ref by speexdsp.
 
 int input_cb(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
 	double streamTime, RtAudioStreamStatus status, void *userData)
@@ -32,10 +35,19 @@ int input_cb(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
     buffer_t bf;
     memcpy(bf.buff, inputBuffer, size);
 	capq.push(bf);
+#ifdef DEBUG	
 	std::cout << "\t\t\t\t\t" << __func__ 
 		<< " tid: " << std::this_thread::get_id()
 		<< " put bytes: " << size 
 		<< std::endl;
+#endif		
+	if (refq.size() > delay_count) {
+		static buffer_t sbuf;
+		static FILE* fp = fopen("cal.pcm", "wb");
+		speex_func_echo_cancel((short*)inputBuffer, (short*)refq.front().buff, (short*)sbuf.buff);
+		fwrite(sbuf.buff, 1, size, fp);
+		//降噪后的输出缓冲区
+	}
 
 #if 0
     static FILE* fp = fopen("./out.pcm", "wb");
@@ -60,18 +72,25 @@ int output_cb(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
         buf_size = capq.size();
 		if (buf_size > 0) {
             memcpy(outputBuffer, capq.front().buff, want_size);
-            capq.pop();
+            capq.pop(); 
+
+            buffer_t bf;
+            memcpy(bf.buff, outputBuffer, want_size);
+            refq.push(bf);
 			break;
 		}
 		std::this_thread::yield();
 	} while(buf_size == 0);
 #endif
+
+#ifdef DEBUG	
 	std::cout << __func__ 
 		<< " tid: " << std::this_thread::get_id()
 		<< " writes bytes: "
 		<< want_size 
 		<< " buff.size: " << capq.size()
 		<< std::endl;
+#endif		
 	return 0;
 }
 
@@ -122,7 +141,9 @@ void stream_filter() {
 
 int main()
 {
+	speex_func_init(bufferFrames, bufferFrames * 2);
 	stream_filter();
+	speex_func_destroy();
 	return 0;
 }
 

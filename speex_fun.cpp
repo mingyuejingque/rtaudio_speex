@@ -36,6 +36,7 @@ int speex_func_destroy() {
 		speex_echo_state_destroy(g_echo_state);
 		g_echo_state = nullptr;
 	}
+	return 0;
 }
 
 int speex_func_echo_cancel(short* mic, short* play, short* out) {
@@ -47,4 +48,5 @@ int speex_func_echo_cancel(short* mic, short* play, short* out) {
 		(const spx_int16_t*)play,
 		(spx_int16_t*)out
 		);
+	return 0;
 }
