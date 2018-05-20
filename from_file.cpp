@@ -22,7 +22,8 @@ const int fmt = RTAUDIO_SINT16;
 static unsigned int sampleRate = 8000;
 static unsigned int bufferFrames = 160;
 static unsigned int tail = bufferFrames * 8;
-std::mutex g_mutex;
+std::mutex g_mutex_input;
+std::mutex g_mutex_output;
 
 typedef struct buffer_s {
     unsigned short buff[320];
@@ -30,6 +31,9 @@ typedef struct buffer_s {
 
 
 std::queue<buffer_t> inputq;
+std::queue<buffer_t> outputq;
+
+void thread_func(bool& exit_flags);
 
 int input_cb(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
 	double streamTime, RtAudioStreamStatus status, void *userData)
@@ -38,14 +42,14 @@ int input_cb(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
 		std::cout << "Stream overflow detected!" << status << std::endl;
 	// Do something with the data in the "inputBuffer" buffer.
 
-    size_t size = nBufferFrames * channels * 2;
+    static size_t size = nBufferFrames * channels * 2;
 
     static FILE* fi = fopen("./cap.pcm", "wb");
     fwrite(inputBuffer, 1, size, fi);
 
-    std::lock_guard<std::mutex> guard(g_mutex);
     buffer_t bf;
     memcpy(bf.buff, inputBuffer, size);
+    std::lock_guard<std::mutex> guard(g_mutex_input);
     inputq.push(bf);
     
 	return 0;
@@ -58,24 +62,40 @@ int output_cb(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
 		std::cout << "Stream overflow detected!" << status << std::endl;
 	// Do something with the data in the "inputBuffer" buffer.
 
-	size_t want_size = nBufferFrames * channels * 2;
+	static size_t size = nBufferFrames * channels * 2;
 	static FILE* fp = fopen("remote.pcm", "rb");
-	fread(outputBuffer, 1, want_size, fp);
+	fread(outputBuffer, 1, size, fp);
 
-	buffer_t in;
-	memset(in.buff, 0, sizeof(in.buff));
-	std::lock_guard<std::mutex> guard(g_mutex);
-	if (inputq.size() >= delay_count) {
-		memcpy(in.buff, inputq.front().buff, sizeof(in.buff));
-		inputq.pop();
-	}
-	static buffer_t out;
-	static FILE* fr = fopen("cancel.pcm", "wb");
-	speex_func_echo_cancel((short*)in.buff, (short*)outputBuffer, (short*)out.buff);
-	fwrite(out.buff, 1, want_size, fr);
-	//降噪后的输出缓冲区	
+	buffer_t bf;
+	memcpy(bf.buff, outputBuffer, size);
+	std::lock_guard<std::mutex> guard(g_mutex_output);
+	outputq.push(bf);
 
 	return 0;
+}
+
+void thread_func(bool& exit_flags) {
+	static size_t size = bufferFrames * channels * 2;
+	while (!exit_flags) {
+		std::lock_guard<std::mutex> guard(g_mutex_input);
+		std::lock_guard<std::mutex> guard2(g_mutex_output);
+		int len1 = inputq.size();
+		int len2 = outputq.size();
+		if (len1 == 0 || len2 == 0) {
+			std::this_thread::yield();
+			continue;
+		}
+
+		static buffer_t out;
+		static FILE* fr = fopen("cancel.pcm", "wb");
+		speex_func_echo_cancel((short*)inputq.front().buff, (short*)outputq.front().buff, (short*)out.buff);
+		fwrite(out.buff, 1, size, fr);
+		//降噪后的输出缓冲区
+
+		inputq.pop();
+		outputq.pop();
+	}
+	std::cout << __func__ << " exit." << std::endl;
 }
 
 void stream_filter() {
@@ -125,9 +145,13 @@ void stream_filter() {
 
 int main()
 {
+	bool exit_flags = false;
+	std::thread t(thread_func, std::ref(exit_flags));
 	speex_func_init(bufferFrames, tail, sampleRate);
 	stream_filter();
 	speex_func_destroy();
+	exit_flags = true;
+	t.join();
 	return 0;
 }
 
