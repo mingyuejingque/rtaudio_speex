@@ -2,7 +2,7 @@
 #include <speex/speex_preprocess.h>
 #include "speex_func.h"
 
-int speex_func_init(int frame_size, int filter_length);
+int speex_func_init(int frame_size, int filter_length, int sample_rate);
 int speex_func_destroy();
 int speex_func_echo_cancel(short* mic, short* play, short* out);
 
@@ -11,7 +11,7 @@ static SpeexEchoState *g_echo_state = nullptr;
 static int g_frame_size = 0;
 static int g_filter_length = 0;
 
-int speex_func_init(int frame_size, int filter_length) {
+int speex_func_init(int frame_size, int filter_length, int sample_rate) {
 	g_frame_size = frame_size;
 	g_filter_length = filter_length;
 
@@ -21,7 +21,10 @@ int speex_func_init(int frame_size, int filter_length) {
 		);
 	g_preprocess_state = speex_preprocess_state_init(
 		g_frame_size,
-		g_filter_length); 
+		sample_rate); 
+
+	speex_echo_ctl(g_echo_state, SPEEX_ECHO_SET_SAMPLING_RATE, &sample_rate);
+	speex_preprocess_ctl(g_preprocess_state, SPEEX_PREPROCESS_SET_ECHO_STATE, g_echo_state);
 
 	return (g_echo_state ? 1 : 0) && (g_preprocess_state? 1: 0);
 }
@@ -48,5 +51,6 @@ int speex_func_echo_cancel(short* mic, short* play, short* out) {
 		(const spx_int16_t*)play,
 		(spx_int16_t*)out
 		);
+	speex_preprocess_run(g_preprocess_state, out);
 	return 0;
 }

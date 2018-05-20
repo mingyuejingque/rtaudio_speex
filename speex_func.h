@@ -3,7 +3,7 @@
 
 #pragma once
 
-int speex_func_init(int frame_size, int filter_length);
+int speex_func_init(int frame_size, int filter_length, int sample_rate);
 int speex_func_destroy();
 int speex_func_echo_cancel(short* mic, short* play, short* out);
 

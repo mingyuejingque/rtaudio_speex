@@ -9,14 +9,12 @@
 #include "RtAudio.h"
 #include "speex_func.h"
 
-//测试目标：
 /*
-1 改成从文件读入数据，当作远端传来的音频 remote.pcm
-2 把mic读到数据写到文件  cap.pcm
-3 把speex 处理后的数据写到文件 cancel.pcm
+从mic 里捕获的数据，发送给喇叭之前缓存一下，
+作为speex的参考。
 */
 
-const int delay_count = 2;
+const int delay_count = 1;
 const int channels = 1;
 const int fmt = RTAUDIO_SINT16;
 unsigned int sampleRate = 8000;
@@ -48,7 +46,7 @@ int input_cb(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
 		<< " put bytes: " << size 
 		<< std::endl;
 #endif		
-	if (refq.size() > delay_count) {
+	if (refq.size() >= delay_count) {
 		static buffer_t sbuf;
 		static FILE* fp = fopen("cal.pcm", "wb");
 		speex_func_echo_cancel((short*)inputBuffer, (short*)refq.front().buff, (short*)sbuf.buff);
@@ -117,7 +115,7 @@ void stream_filter() {
 	auto out = in;
 	out.deviceId = adc_output.getDefaultOutputDevice();
     std::cout << "input device: " << in.deviceId
-            << "output device: " << out.deviceId
+            << " output device: " << out.deviceId
             << std::endl;
 	try {
 		adc_input.openStream(nullptr, &in, fmt,
@@ -150,7 +148,7 @@ void stream_filter() {
 
 int main()
 {
-	speex_func_init(bufferFrames, bufferFrames * 2);
+	speex_func_init(bufferFrames, bufferFrames * 2, sampleRate);
 	stream_filter();
 	speex_func_destroy();
 	return 0;
