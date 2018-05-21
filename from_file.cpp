@@ -49,8 +49,8 @@ int input_cb(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
 
     static int bxx = 0;
     if (bxx++ < 4) {  //扔掉头几帧试试
-
-    	return 0;
+    	memset(inputBuffer, 0, size);
+    	//return 0;
     }
 
     buffer_t bf;
