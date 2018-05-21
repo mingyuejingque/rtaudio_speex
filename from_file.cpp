@@ -21,7 +21,7 @@ const int channels = 1;
 const int fmt = RTAUDIO_SINT16;
 static unsigned int sampleRate = 8000;
 static unsigned int bufferFrames = 160;
-static unsigned int tail = bufferFrames * 8;
+static unsigned int tail = 2400; //估算的1/3
 std::mutex g_mutex_input;
 std::mutex g_mutex_output;
 
@@ -47,9 +47,9 @@ int input_cb(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
     static FILE* fi = fopen("./cap.pcm", "wb");
     fwrite(inputBuffer, 1, size, fi);
 
-    static bool bxx = false;
-    if (!bxx) {  //扔掉一帧试试
-    	bxx = true;
+    static int bxx = 0;
+    if (bxx++ < 3) {  //扔掉头几帧试试
+
     	return 0;
     }
 
