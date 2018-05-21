@@ -21,7 +21,7 @@ const int channels = 1;
 const int fmt = RTAUDIO_SINT16;
 static unsigned int sampleRate = 8000;
 static unsigned int bufferFrames = 160;
-static unsigned int tail = 2400; //估算的1/3
+static unsigned int tail = 4096; //估算的1/3
 std::mutex g_mutex_input;
 std::mutex g_mutex_output;
 
