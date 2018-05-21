@@ -23,9 +23,9 @@ int speex_func_init(int frame_size, int filter_length, int sample_rate) {
 		g_frame_size,
 		sample_rate); 
 
-	int _db = 60;
+	int _db = 30;
 	int _denose = 1;
-	int _noiseSuppress = -25; 
+	int _noiseSuppress = -30; 
 	speex_echo_ctl(g_echo_state, SPEEX_ECHO_SET_SAMPLING_RATE, &sample_rate);
 	speex_preprocess_ctl(g_preprocess_state, SPEEX_PREPROCESS_SET_DENOISE, &_denose);
 	speex_preprocess_ctl(g_preprocess_state, SPEEX_PREPROCESS_SET_NOISE_SUPPRESS, &_noiseSuppress); //设置噪声的dB	

@@ -48,7 +48,7 @@ int input_cb(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
     fwrite(inputBuffer, 1, size, fi);
 
     static int bxx = 0;
-    if (bxx++ < 3) {  //扔掉头几帧试试
+    if (bxx++ < 4) {  //扔掉头几帧试试
 
     	return 0;
     }
